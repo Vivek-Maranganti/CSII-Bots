@@ -50,7 +50,7 @@ class Platform(pygame.sprite.Sprite):
         else:
             self.image = pygame.image.load('Assets/Obstacles/MovingPlatform.png').convert_alpha()
             self.image = pygame.transform.rotozoom(self.image, 0, .4)
-            self.rect = self.image.get_rect(center = (200, ycoord))
+            self.rect = self.image.get_rect(center = (randint(100,300), ycoord))
 
     def movex(self):
         if self.type == "moving":
@@ -61,6 +61,8 @@ class Platform(pygame.sprite.Sprite):
     def movey(self):
         if player.sprite.rect.y<400 and player.sprite.gravity<0:
             self.rect.y+=-player.sprite.gravity
+        if self.rect.y > 800:
+            self.kill()
 
     def touch(self):
         leftx =  player.sprite.rect.left
@@ -81,15 +83,13 @@ class Platform(pygame.sprite.Sprite):
             
 
 
-def Background():
-    background = pygame.image.load('Assets/Background/tempBackground.png').convert_alpha()
-    screen.blit(background, (0,0))
-
 
 pygame.init()
 screen = pygame.display.set_mode((400, 800))
 clock = pygame.time.Clock()
 pygame.display.set_caption('Doo-Doo Jump')
+
+background = pygame.image.load('Assets/Background/tempBackground.png').convert_alpha()
 
 player = pygame.sprite.GroupSingle()
 player.add(Player())
@@ -109,7 +109,7 @@ while True:
             pygame.quit()
             exit()
         
-    Background()
+    screen.blit(background, (0,0))
     # collision_sprite()
     player.draw(screen)
     player.update()
