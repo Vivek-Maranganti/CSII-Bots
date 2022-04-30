@@ -24,7 +24,7 @@ class Player(pygame.sprite.Sprite):
         if self.rect.y>400 or self.gravity > 0:
             self.rect.y += self.gravity
         else:
-            self.rect.y = 395
+            self.rect.y = 399
 
     def update(self):
         self.player_input()
