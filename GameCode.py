@@ -17,7 +17,9 @@ class Player(pygame.sprite.Sprite):
         if keys[pygame.K_RIGHT]:
             self.rect.centerx += 5
 
-
+    def player_parameters(self):
+        if self.rect.right < 0: self.rect.left = 400
+        if self.rect.left > 400: self.rect.right = 0
 
     def apply_gravity(self):
         self.gravity += .3
@@ -27,6 +29,7 @@ class Player(pygame.sprite.Sprite):
             self.rect.y = 399
 
     def update(self):
+        self.player_parameters()
         self.player_input()
         self.apply_gravity()
 
@@ -39,7 +42,7 @@ class Platform(pygame.sprite.Sprite):
         if type=="normal":
             self.image = pygame.image.load('Assets/Obstacles/PlatformNormal.png').convert_alpha()
             self.image = pygame.transform.rotozoom(self.image, 0, .4)
-            self.rect = self.image.get_rect(center = (randint(20,370), ycoord))
+            self.rect = self.image.get_rect(center = (randint(25,370), ycoord))
         elif type=="broken":
             self.image = pygame.image.load('Assets/Obstacles/BreakPlatform.png').convert_alpha()
             self.image = pygame.transform.rotozoom(self.image, 0, .4)
