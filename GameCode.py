@@ -1,52 +1,82 @@
 import pygame
 from sys import exit
+from random import randint, choice
 
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-
         self.image = pygame.image.load('Assets/Player/tempMonkeyPlayer.png').convert_alpha()
-        self.rect = self.image.get_rect(midbottom = (200, 400))
+        self.image = pygame.transform.rotozoom(self.image, 0, .5)
+        self.rect = self.image.get_rect(midbottom = (200, 600))
         self.gravity = 0
-        self.rightAccelaration = 0
 
     def player_input(self):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_RIGHT]:
-            while self.rightAccelaration < 15:
-                self.rightAccelaration += 1
-            self.rect.x += self.rightAccelaration
-            if self.rect.x > 400:
-                self.rect.x = 0
-        else: self.rightAccelaration = 0
-
         if keys[pygame.K_LEFT]:
-            while self.rightAccelaration > -15:
-                self.rightAccelaration -= 1
-            self.rect.x += self.rightAccelaration
-            if self.rect.x < 0:
-                self.rect.x = 400
-        else: self.rightAccelaration = 0
+            self.rect.centerx -= 5
+        if keys[pygame.K_RIGHT]:
+            self.rect.centerx += 5
+
 
 
     def apply_gravity(self):
-        self.gravity += 1
-        self.rect.y += self.gravity
+        self.gravity += .3
+        if self.rect.y>400 or self.gravity > 0:
+            self.rect.y += self.gravity
+        else:
+            self.rect.y = 395
 
     def update(self):
         self.player_input()
         self.apply_gravity()
 
 
-class Platforms(pygame.sprite.Sprite):
-    def __init__(self):
+class Platform(pygame.sprite.Sprite):
+    def __init__(self,type,ycoord):
         super().__init__()
-        self.image = pygame.image.load('Assets/Obstacles/PlatformNormal.png')
-        self.rect = self.image.get_rect(center = (200, 650))
+        self.type = type
+        self.velocity = choice([3,-3])
+        if type=="normal":
+            self.image = pygame.image.load('Assets/Obstacles/PlatformNormal.png').convert_alpha()
+            self.image = pygame.transform.rotozoom(self.image, 0, .4)
+            self.rect = self.image.get_rect(center = (randint(20,370), ycoord))
+        elif type=="broken":
+            self.image = pygame.image.load('Assets/Obstacles/BreakPlatform.png').convert_alpha()
+            self.image = pygame.transform.rotozoom(self.image, 0, .4)
+            self.rect = self.image.get_rect(center = (randint(20, 370), ycoord))
+        else:
+            self.image = pygame.image.load('Assets/Obstacles/MovingPlatform.png').convert_alpha()
+            self.image = pygame.transform.rotozoom(self.image, 0, .4)
+            self.rect = self.image.get_rect(center = (200, ycoord))
 
-def collision_sprite():
-    if pygame.sprite.spritecollide(player.sprite, platform_group, False) and player.sprite.gravity > 0:
-        player.sprite.gravity -= (player.sprite.gravity + 27)
+    def movex(self):
+        if self.type == "moving":
+            self.rect.x += self.velocity
+            if self.rect.x > 340 or self.rect.x < 20:
+                self.velocity *= -1
+
+    def movey(self):
+        if player.sprite.rect.y<400 and player.sprite.gravity<0:
+            self.rect.y+=-player.sprite.gravity
+
+    def touch(self):
+        leftx =  player.sprite.rect.left
+        rightx = player.sprite.rect.right
+        centerx = player.sprite.rect.centerx
+        bottomy = player.sprite.rect.bottom
+        colly = self.rect.bottom+5>bottomy and self.rect.top-5<bottomy
+        collx = (centerx > self.rect.left and centerx < self.rect.right) or (rightx > self.rect.left and rightx < self.rect.right) or (leftx > self.rect.left and leftx < self.rect.right)
+        if collx and colly and player.sprite.gravity > 0:
+            player.sprite.gravity = -10
+            if self.type == "broken":
+                self.kill()
+
+    def update(self):
+        self.movex()
+        self.movey()
+        self.touch()
+            
+
 
 def Background():
     background = pygame.image.load('Assets/Background/tempBackground.png').convert_alpha()
@@ -62,7 +92,11 @@ player = pygame.sprite.GroupSingle()
 player.add(Player())
 
 platform_group = pygame.sprite.Group()
-platform_group.add(Platforms())
+topplat = Platform("normal", 650)
+topplat.rect.center = (200,650)
+platform_group.add(topplat)
+
+
 
 
 while True:
@@ -73,9 +107,12 @@ while True:
             exit()
         
     Background()
-    collision_sprite()
+    # collision_sprite()
     player.draw(screen)
     player.update()
+    if topplat.rect.bottom>20:
+        topplat = Platform(choice(["normal", "normal", "normal", "normal", "broken", "moving"]), topplat.rect.bottom - randint(50,120))
+        platform_group.add(topplat)
     platform_group.draw(screen)
     platform_group.update()
 
