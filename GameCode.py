@@ -8,10 +8,26 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.image.load('Assets/Player/tempMonkeyPlayer.png').convert_alpha()
         self.rect = self.image.get_rect(midbottom = (200, 400))
         self.gravity = 0
+        self.rightAccelaration = 0
 
     def player_input(self):
         keys = pygame.key.get_pressed()
-        pass
+        if keys[pygame.K_RIGHT]:
+            while self.rightAccelaration < 15:
+                self.rightAccelaration += 1
+            self.rect.x += self.rightAccelaration
+            if self.rect.x > 400:
+                self.rect.x = 0
+        else: self.rightAccelaration = 0
+
+        if keys[pygame.K_LEFT]:
+            while self.rightAccelaration > -15:
+                self.rightAccelaration -= 1
+            self.rect.x += self.rightAccelaration
+            if self.rect.x < 0:
+                self.rect.x = 400
+        else: self.rightAccelaration = 0
+
 
     def apply_gravity(self):
         self.gravity += 1
@@ -22,14 +38,14 @@ class Player(pygame.sprite.Sprite):
         self.apply_gravity()
 
 
-class Obstacles(pygame.sprite.Sprite):
+class Platforms(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.image = pygame.image.load('Assets/Obstacles/PlatformNormal.png')
         self.rect = self.image.get_rect(center = (200, 650))
 
 def collision_sprite():
-    if pygame.sprite.spritecollide(player.sprite, obstacle_group, False) and player.sprite.gravity > 0:
+    if pygame.sprite.spritecollide(player.sprite, platform_group, False) and player.sprite.gravity > 0:
         player.sprite.gravity -= (player.sprite.gravity + 27)
 
 def Background():
@@ -45,8 +61,8 @@ pygame.display.set_caption('Doo-Doo Jump')
 player = pygame.sprite.GroupSingle()
 player.add(Player())
 
-obstacle_group = pygame.sprite.Group()
-obstacle_group.add(Obstacles())
+platform_group = pygame.sprite.Group()
+platform_group.add(Platforms())
 
 
 while True:
@@ -60,7 +76,7 @@ while True:
     collision_sprite()
     player.draw(screen)
     player.update()
-    obstacle_group.draw(screen)
-    obstacle_group.update()
+    platform_group.draw(screen)
+    platform_group.update()
 
     pygame.display.update()
