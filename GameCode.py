@@ -1,6 +1,30 @@
 import pygame
 from sys import exit
 from random import randint, choice
+import numpy as np
+
+class Network(object):
+
+    def __init__(self, sizes):
+        self.num_layers = len(sizes)
+        self.sizes = sizes
+        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
+        self.weights = [np.random.randn(y, x) 
+                        for x, y in zip(sizes[:-1], sizes[1:])]
+
+    def sigmoid(z):
+        return 1.0/(1.0+np.exp(-z))
+
+    def feedforward(self, a):
+        for b, w in zip(self.biases, self.weights):
+            a = self.sigmoid(np.dot(w, a)+b)
+        return a
+
+network1 = Network(5,8,3)
+list1 = [1,2,3,4,5]
+list2 = network1.feedforward(list1)
+print(list2)
+
 
 class Player(pygame.sprite.Sprite):
     def __init__(self):
@@ -13,9 +37,9 @@ class Player(pygame.sprite.Sprite):
     def player_input(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
-            self.rect.centerx -= 5
+            self.rect.centerx -= 6
         if keys[pygame.K_RIGHT]:
-            self.rect.centerx += 5
+            self.rect.centerx += 6
 
     def player_parameters(self):
         if self.rect.right < 0: self.rect.left = 400
@@ -82,12 +106,11 @@ class Platform(pygame.sprite.Sprite):
         self.touch()
             
 
-
-
 pygame.init()
 screen = pygame.display.set_mode((400, 800))
 clock = pygame.time.Clock()
 pygame.display.set_caption('Doo-Doo Jump')
+
 
 background = pygame.image.load('Assets/Background/tempBackground.png').convert_alpha()
 
@@ -100,17 +123,14 @@ topplat.rect.center = (200,650)
 platform_group.add(topplat)
 
 
-
-
 while True:
     clock.tick(60)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
             exit()
-        
+
     screen.blit(background, (0,0))
-    # collision_sprite()
     player.draw(screen)
     player.update()
     if topplat.rect.bottom>20:
