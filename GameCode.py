@@ -2,48 +2,75 @@ import pygame
 from sys import exit
 from random import randint, choice
 import numpy as np
+import os
+
+os.chdir("DoodleJump/")
+
+def sigmoid(z):
+        return 1.0/(1.0+np.exp(-z))
 
 class Network(object):
 
     def __init__(self, sizes):
         self.num_layers = len(sizes)
         self.sizes = sizes
-        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
-        self.weights = [np.random.randn(y, x) 
+        self.biases = [2 * np.random.randn(y) for y in sizes[1:]]
+        self.weights = [2 * np.random.randn(y, x) 
                         for x, y in zip(sizes[:-1], sizes[1:])]
-
-    def sigmoid(z):
-        return 1.0/(1.0+np.exp(-z))
 
     def feedforward(self, a):
         for b, w in zip(self.biases, self.weights):
-            a = self.sigmoid(np.dot(w, a)+b)
-        return a
+            a = sigmoid(np.dot(w, a)+b)
+        return np.argmax(a)
 
-network1 = Network(5,8,3)
-list1 = [1,2,3,4,5]
-list2 = network1.feedforward(list1)
-print(list2)
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self,network):
         super().__init__()
         self.image = pygame.image.load('Assets/Player/tempMonkeyPlayer.png').convert_alpha()
         self.image = pygame.transform.rotozoom(self.image, 0, .5)
         self.rect = self.image.get_rect(midbottom = (200, 600))
         self.gravity = 0
+        self.network = network
+        self.alive = True
+
+    def getinputAI(self):
+        coords = []
+        for platform in platform_group:
+            coords.append((platform.rect.x-self.rect.x,platform.rect.y-self.rect.y))
+        minposy = 3000
+        maxnegy = -3000
+        xy1 = [0,0]
+        xy2 = [0,0]
+        for x,y in coords:
+            if y>=0:
+                if y < minposy:
+                    xy1 = [x,y]
+                    minposy = y
+            else:
+                if y > maxnegy:
+                    xy2 = [x,y]
+                    maxnegy = y
+        # print(xy1)
+        # print(xy2)
+        return [xy1[0],xy1[1],xy2[0],xy2[1],self.gravity]
 
     def player_input(self):
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
+        # keys = pygame.key.get_pressed()
+        # if keys[pygame.K_LEFT]:
+        #     self.rect.centerx -= 6
+        # if keys[pygame.K_RIGHT]:
+        #     self.rect.centerx += 6
+        if self.key == 0:
             self.rect.centerx -= 6
-        if keys[pygame.K_RIGHT]:
+        elif self.key == 2:
             self.rect.centerx += 6
 
     def player_parameters(self):
         if self.rect.right < 0: self.rect.left = 400
         if self.rect.left > 400: self.rect.right = 0
+        if self.rect.top > 800: self.alive = False
 
     def apply_gravity(self):
         self.gravity += .3
@@ -54,8 +81,9 @@ class Player(pygame.sprite.Sprite):
 
     def update(self):
         self.player_parameters()
-        self.player_input()
         self.apply_gravity()
+        self.key = self.network.feedforward(self.getinputAI())        
+        self.player_input()
 
 
 class Platform(pygame.sprite.Sprite):
@@ -115,7 +143,7 @@ pygame.display.set_caption('Doo-Doo Jump')
 background = pygame.image.load('Assets/Background/tempBackground.png').convert_alpha()
 
 player = pygame.sprite.GroupSingle()
-player.add(Player())
+player.add(Player(Network([5,8,3])))
 
 platform_group = pygame.sprite.Group()
 topplat = Platform("normal", 650)
