@@ -2,9 +2,6 @@ import pygame
 from sys import exit
 from random import randint, choice
 import numpy as np
-import os
-
-os.chdir("DoodleJump/")
 
 def sigmoid(z):
         return 1.0/(1.0+np.exp(-z))
