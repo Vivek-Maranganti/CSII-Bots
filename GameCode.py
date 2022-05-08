@@ -1,5 +1,6 @@
 import pygame
 from sys import exit
+import random
 from random import randint, choice
 import numpy as np
 
@@ -11,9 +12,10 @@ class Network(object):
     def __init__(self, sizes):
         self.num_layers = len(sizes)
         self.sizes = sizes
-        self.biases = [2 * np.random.randn(y) for y in sizes[1:]]
-        self.weights = [2 * np.random.randn(y, x) 
+        self.biases = [np.random.randn(y) for y in sizes[1:]]
+        self.weights = [np.random.randn(y, x) 
                         for x, y in zip(sizes[:-1], sizes[1:])]
+        self.fitness = 0
 
     def feedforward(self, a):
         for b, w in zip(self.biases, self.weights):
@@ -31,6 +33,8 @@ class Player(pygame.sprite.Sprite):
         self.gravity = 0
         self.network = network
         self.alive = True
+        self.score = 0
+        self.timer = 0
 
     def getinputAI(self):
         coords = []
@@ -49,25 +53,25 @@ class Player(pygame.sprite.Sprite):
                 if y > maxnegy:
                     xy2 = [x,y]
                     maxnegy = y
-        # print(xy1)
-        # print(xy2)
         return [xy1[0],xy1[1],xy2[0],xy2[1],self.gravity]
 
     def player_input(self):
-        # keys = pygame.key.get_pressed()
-        # if keys[pygame.K_LEFT]:
-        #     self.rect.centerx -= 6
-        # if keys[pygame.K_RIGHT]:
-        #     self.rect.centerx += 6
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            self.rect.centerx -= 6
+        if keys[pygame.K_RIGHT]:
+            self.rect.centerx += 6
         if self.key == 0:
             self.rect.centerx -= 6
         elif self.key == 2:
             self.rect.centerx += 6
 
     def player_parameters(self):
-        if self.rect.right < 0: self.rect.left = 400
-        if self.rect.left > 400: self.rect.right = 0
-        if self.rect.top > 800: self.alive = False
+        if self.rect.left < 0: self.rect.left = 0
+        if self.rect.right > 400: self.rect.right = 400
+        if self.rect.top > 800:
+            self.network.fitness = self.score
+            self.alive = False
 
     def apply_gravity(self):
         self.gravity += .3
@@ -76,11 +80,19 @@ class Player(pygame.sprite.Sprite):
         else:
             self.rect.y = 399
 
+    def idle(self):
+        self.timer+=1
+        if self.timer>420:
+            self.network.fitness = self.score
+            self.alive = False
+    
     def update(self):
         self.player_parameters()
         self.apply_gravity()
         self.key = self.network.feedforward(self.getinputAI())        
         self.player_input()
+        self.idle()
+        
 
 
 class Platform(pygame.sprite.Sprite):
@@ -109,7 +121,10 @@ class Platform(pygame.sprite.Sprite):
 
     def movey(self):
         if player.sprite.rect.y<400 and player.sprite.gravity<0:
-            self.rect.y+=-player.sprite.gravity
+            self.rect.y-=player.sprite.gravity
+            player.sprite.score-=player.sprite.gravity/100
+            if player.sprite.gravity<-2:
+                player.sprite.timer = 0
         if self.rect.y > 800:
             self.kill()
 
@@ -135,33 +150,125 @@ pygame.init()
 screen = pygame.display.set_mode((400, 800))
 clock = pygame.time.Clock()
 pygame.display.set_caption('Doo-Doo Jump')
-
-
 background = pygame.image.load('Assets/Background/tempBackground.png').convert_alpha()
-
 player = pygame.sprite.GroupSingle()
-player.add(Player(Network([5,8,3])))
-
 platform_group = pygame.sprite.Group()
 topplat = Platform("normal", 650)
-topplat.rect.center = (200,650)
-platform_group.add(topplat)
 
+def reset_game():
+    player.empty()
+    platform_group.empty()
+    platform_group.add(topplat)
 
+#neural network functions
+def selection(networks):
+    bob = networks
+    bob.sort(key=lambda network: network.fitness)
+    topnets = bob[:15]
+    return topnets
+def mcrossover(w1, w2, b1, b2):
+    s = w1.shape
+    m1 = w1.flatten()
+    m2 = w2.flatten()
+    n = m1.size
+    newm1 = np.empty(n)
+    newm2 = np.empty(n)
+    newb1 = np.empty(b1.size)
+    newb2 = np.empty(b1.size)
+    r = randint(0,n-1)
+    y = r/s[1]
+    if y%1 != 0:
+        bruh = random.random()
+        if bruh>.5: y+=1
+    y = int(y)
+    for i in range(r):
+        newm1[i] = m1[i]
+        newm2[i] = m2[i]
+    for i in range(r, n):
+        newm1[i] = m2[i]
+        newm2[i] = m1[i]
+    for i in range(y):
+        newb1[i] = b1[i]
+        newb2[i] = b2[i]
+    for i in range(y, b1.size):
+        newb1[i] = b2[i]
+        newb2[i] = b1[i]
+    return [newm1.reshape(s),newm2.reshape(s),newb1,newb2]
+def mutate(net):
+    mrate = .05
+    netc = Network(net.sizes)
+    for i in range(2):
+        netc.weights[i] = net.weights[i]
+        netc.biases[i] = net.biases[i]
+
+    for i in netc.biases:
+        for j in range(len(i)):
+            if random.random()<mrate:
+                i[j] = np.random.randn()
+    for i in netc.weights:
+        for j in range(i.shape[0]):
+            for k in range(i.shape[1]):
+                if random.random()<mrate:
+                    i[j,k] = np.random.randn()
+    return netc    
+def ncrossover(net1,net2):
+    child1 = Network([5,8,3])
+    child2 = Network([5,8,3])
+    for i in range(2):
+        a = mcrossover(net1.weights[i],net2.weights[i],net1.biases[i],net2.biases[i])
+        child1.weights[i] = a[0]
+        child2.weights[i] = a[1]
+        child1.biases[i] = a[2]
+        child2.biases[i] = a[3]
+    return [child1,child2]
+def newpop(oldpop):
+    NNs = []
+    for i in range(20):
+        NNs.append(Network([5,8,3]))
+    topnets = selection(oldpop)
+    for i in range(20):
+        n1 = choice(topnets)
+        n2 = choice(topnets)
+        b = ncrossover(n1,n2)
+        NNs.append(b[0])
+        NNs.append(b[1])
+    NNs.extend(topnets)
+    for i in range(20,len(NNs)):
+        NNs[i] = mutate(NNs[i])
+    NNs.extend(topnets)
+    return NNs
+test_font = pygame.font.Font(None,50)
+gen = 0
+NNs = []
+for i in range(100):
+    NNs.append(Network([5,8,3]))
 while True:
-    clock.tick(60)
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            exit()
+    print(gen)
+    for nn in NNs:
+        topplat = Platform("normal", 650)
+        topplat.rect.centerx = 200
+        reset_game()
+        player.add(Player(nn))
+        while player.sprite.alive:
+            clock.tick(120)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
 
-    screen.blit(background, (0,0))
-    player.draw(screen)
-    player.update()
-    if topplat.rect.bottom>20:
-        topplat = Platform(choice(["normal", "normal", "normal", "normal", "broken", "moving"]), topplat.rect.bottom - randint(50,120))
-        platform_group.add(topplat)
-    platform_group.draw(screen)
-    platform_group.update()
+            screen.blit(background, (0,0))
+            player.draw(screen)
+            player.update()
+            score_surf = test_font.render(f'{int(player.sprite.score)}', False, (64, 64, 64))
+            score_rect = score_surf.get_rect(center = (200, 50))
+            if topplat.rect.bottom>20:
+                topplat = Platform(choice(["normal"]), topplat.rect.bottom - randint(50,90))
+                platform_group.add(topplat)
+            platform_group.draw(screen)
+            screen.blit(score_surf, score_rect)
+            platform_group.update()
 
-    pygame.display.update()
+            pygame.display.update()
+    gen+=1
+    NNs = newpop(NNs)
+    
