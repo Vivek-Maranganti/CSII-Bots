@@ -27,6 +27,7 @@ class Network(object):
 class Player(pygame.sprite.Sprite):
     def __init__(self,network):
         super().__init__()
+        # Creates necessary properties for the Player
         self.image = pygame.image.load('Assets/Player/tempMonkeyPlayer.png').convert_alpha()
         self.image = pygame.transform.rotozoom(self.image, 0, .5)
         self.rect = self.image.get_rect(midbottom = (200, 600))
@@ -55,17 +56,20 @@ class Player(pygame.sprite.Sprite):
                     maxnegy = y
         return [xy1[0],xy1[1],xy2[0],xy2[1],self.gravity]
 
+    # Creates keys which can move the player to the right or left
     def player_input(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
             self.rect.centerx -= 6
         if keys[pygame.K_RIGHT]:
             self.rect.centerx += 6
+        # Used by AI to move right or left
         if self.key == 0:
             self.rect.centerx -= 6
         elif self.key == 2:
             self.rect.centerx += 6
 
+    # If the player goes off the screen on one side, it will appear on the other side
     def player_parameters(self):
         if self.rect.left < 0: self.rect.left = 0
         if self.rect.right > 400: self.rect.right = 400
@@ -73,13 +77,15 @@ class Player(pygame.sprite.Sprite):
             self.network.fitness = self.score
             self.alive = False
 
+    # Player will move downward unless above the half point
     def apply_gravity(self):
         self.gravity += .3
         if self.rect.y>400 or self.gravity > 0:
             self.rect.y += self.gravity
         else:
+            # If the player is above the half point, it will be moved just below the half point
             self.rect.y = 399
-
+    # Kills player if it doesn't move upward for too long
     def idle(self):
         self.timer+=1
         if self.timer>420:
@@ -99,7 +105,9 @@ class Platform(pygame.sprite.Sprite):
     def __init__(self,type,ycoord):
         super().__init__()
         self.type = type
+        # type "moving" can move left OR right, rather than having all of them move in the same direction
         self.velocity = choice([3,-3])
+        # creating the different types of platforms
         if type=="normal":
             self.image = pygame.image.load('Assets/Obstacles/PlatformNormal.png').convert_alpha()
             self.image = pygame.transform.rotozoom(self.image, 0, .4)
@@ -113,12 +121,15 @@ class Platform(pygame.sprite.Sprite):
             self.image = pygame.transform.rotozoom(self.image, 0, .4)
             self.rect = self.image.get_rect(center = (randint(100,300), ycoord))
 
+    # moves the "moving" platforms to the right or left while in certain screen parameters
     def movex(self):
         if self.type == "moving":
             self.rect.x += self.velocity
             if self.rect.x > 340 or self.rect.x < 20:
+                # switches direction of platform after it touches the edge
                 self.velocity *= -1
 
+    # if the player is above the half point while still moving upward, the platforms will move downward, making it look like the screen is moving upward
     def movey(self):
         if player.sprite.rect.y<400 and player.sprite.gravity<0:
             self.rect.y-=player.sprite.gravity
@@ -128,6 +139,7 @@ class Platform(pygame.sprite.Sprite):
         if self.rect.y > 800:
             self.kill()
 
+    # custom collision fuction to make it so a collision will only be counted if the bottom of the Player touches a Platform
     def touch(self):
         leftx =  player.sprite.rect.left
         rightx = player.sprite.rect.right
@@ -256,6 +268,7 @@ while True:
                     pygame.quit()
                     exit()
 
+            # Drawing everything onto the screen
             screen.blit(background, (0,0))
             player.draw(screen)
             player.update()
