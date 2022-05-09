@@ -4,11 +4,11 @@ import random
 from random import randint, choice
 import numpy as np
 
-def sigmoid(z):
-        return 1.0/(1.0+np.exp(-z))
+
 
 class Network(object):
 
+    #initialize neural network with weights and biases and set fitness to 0
     def __init__(self, sizes):
         self.num_layers = len(sizes)
         self.sizes = sizes
@@ -17,14 +17,20 @@ class Network(object):
                         for x, y in zip(sizes[:-1], sizes[1:])]
         self.fitness = 0
 
+    # sigmoid activation function to normalize values
+    def sigmoid(self,z):
+        return 1.0/(1.0+np.exp(-z))
+
+    # passes inputs through network and returns output
     def feedforward(self, a):
         for b, w in zip(self.biases, self.weights):
-            a = sigmoid(np.dot(w, a)+b)
+            a = self.sigmoid(np.dot(w, a)+b)
         return np.argmax(a)
 
 
-
+#player class
 class Player(pygame.sprite.Sprite):
+    
     def __init__(self,network):
         super().__init__()
         # Creates necessary properties for the Player
@@ -37,6 +43,7 @@ class Player(pygame.sprite.Sprite):
         self.score = 0
         self.timer = 0
 
+    # finds the coordinates of the closest above platform, and the closest below platform, and gives this information as input to the AI along with its gravity
     def getinputAI(self):
         coords = []
         for platform in platform_group:
@@ -69,7 +76,7 @@ class Player(pygame.sprite.Sprite):
         elif self.key == 2:
             self.rect.centerx += 6
 
-    # If the player goes off the screen on one side, it will appear on the other side
+    # Keeps the player on the screen and kills the player if he falls down
     def player_parameters(self):
         if self.rect.left < 0: self.rect.left = 0
         if self.rect.right > 400: self.rect.right = 400
@@ -77,7 +84,7 @@ class Player(pygame.sprite.Sprite):
             self.network.fitness = self.score
             self.alive = False
 
-    # Player will move downward unless above the half point
+    # Moves the screen downward if the player reaches halfway up the screen
     def apply_gravity(self):
         self.gravity += .3
         if self.rect.y>400 or self.gravity > 0:
@@ -85,6 +92,7 @@ class Player(pygame.sprite.Sprite):
         else:
             # If the player is above the half point, it will be moved just below the half point
             self.rect.y = 399
+
     # Kills player if it doesn't move upward for too long
     def idle(self):
         self.timer+=1
@@ -92,6 +100,7 @@ class Player(pygame.sprite.Sprite):
             self.network.fitness = self.score
             self.alive = False
     
+    #applies functions and finds key to press based on AI
     def update(self):
         self.player_parameters()
         self.apply_gravity()
@@ -152,12 +161,13 @@ class Platform(pygame.sprite.Sprite):
             if self.type == "broken":
                 self.kill()
 
+    #applies functions
     def update(self):
         self.movex()
         self.movey()
         self.touch()
             
-
+#initialization of basic pygame elements such as background, font, clock, display, and sprite groups
 pygame.init()
 screen = pygame.display.set_mode((400, 800))
 clock = pygame.time.Clock()
@@ -166,18 +176,25 @@ background = pygame.image.load('Assets/Background/tempBackground.png').convert_a
 player = pygame.sprite.GroupSingle()
 platform_group = pygame.sprite.Group()
 topplat = Platform("normal", 650)
+test_font = pygame.font.Font(None,50)
 
+
+#resets the game
 def reset_game():
     player.empty()
     platform_group.empty()
     platform_group.add(topplat)
 
-#neural network functions
+#neural network functions----------------------------------------------------
+
+#selects the top 15 networks from the last generation
 def selection(networks):
     bob = networks
     bob.sort(key=lambda network: network.fitness)
     topnets = bob[:15]
     return topnets
+
+#takes two parent matrices and switches some genes to make two child matrices
 def mcrossover(w1, w2, b1, b2):
     s = w1.shape
     m1 = w1.flatten()
@@ -206,6 +223,8 @@ def mcrossover(w1, w2, b1, b2):
         newb1[i] = b2[i]
         newb2[i] = b1[i]
     return [newm1.reshape(s),newm2.reshape(s),newb1,newb2]
+
+#mutates a neural network by changing 5% of the values to new random numbers
 def mutate(net):
     mrate = .05
     netc = Network(net.sizes)
@@ -223,6 +242,8 @@ def mutate(net):
                 if random.random()<mrate:
                     i[j,k] = np.random.randn()
     return netc    
+
+#uses matrix crossover function to create two child neural networks from two parent networks
 def ncrossover(net1,net2):
     child1 = Network([5,8,3])
     child2 = Network([5,8,3])
@@ -233,6 +254,8 @@ def ncrossover(net1,net2):
         child1.biases[i] = a[2]
         child2.biases[i] = a[3]
     return [child1,child2]
+
+#created new population bases on old population -- makes the best networks have children that move on to the next generation
 def newpop(oldpop):
     NNs = []
     for i in range(20):
@@ -249,20 +272,27 @@ def newpop(oldpop):
         NNs[i] = mutate(NNs[i])
     NNs.extend(topnets)
     return NNs
-test_font = pygame.font.Font(None,50)
+
+# --------------------------------------------------------------------------------
+
+#main execution code----------------------------------------------------------------
 gen = 0
 NNs = []
+
+#adds 100 random neural networks
 for i in range(100):
     NNs.append(Network([5,8,3]))
+
+# game loop
 while True:
-    print(gen)
+    print("Gen: " + str(gen))
     for nn in NNs:
         topplat = Platform("normal", 650)
         topplat.rect.centerx = 200
         reset_game()
         player.add(Player(nn))
         while player.sprite.alive:
-            clock.tick(120)
+            clock.tick(1000) # sets game speed -- can change to train faster
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -271,17 +301,17 @@ while True:
             # Drawing everything onto the screen
             screen.blit(background, (0,0))
             player.draw(screen)
-            player.update()
+            player.update() # updates player with movement and AI
             score_surf = test_font.render(f'{int(player.sprite.score)}', False, (64, 64, 64))
             score_rect = score_surf.get_rect(center = (200, 50))
-            if topplat.rect.bottom>20:
+            if topplat.rect.bottom>20: # generates new platforms as the platforms move down
                 topplat = Platform(choice(["normal"]), topplat.rect.bottom - randint(50,90))
                 platform_group.add(topplat)
             platform_group.draw(screen)
             screen.blit(score_surf, score_rect)
-            platform_group.update()
+            platform_group.update() # updates platforms
 
-            pygame.display.update()
+            pygame.display.update() # updates main display
     gen+=1
     NNs = newpop(NNs)
     
