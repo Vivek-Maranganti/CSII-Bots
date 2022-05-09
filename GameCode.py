@@ -190,7 +190,7 @@ def reset_game():
 #selects the top 15 networks from the last generation
 def selection(networks):
     bob = networks
-    bob.sort(key=lambda network: network.fitness)
+    bob.sort(key=lambda network: network.fitness, reverse = True)
     topnets = bob[:15]
     return topnets
 
@@ -292,7 +292,7 @@ while True:
         reset_game()
         player.add(Player(nn))
         while player.sprite.alive:
-            clock.tick(1000) # sets game speed -- can change to train faster
+            clock.tick(900) # sets game speed -- can change to train faster
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
